@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Optional
 import json
 
-from ..models import SkillLock, SkillLockEntry
+from ..models import Skill, SkillLock, SkillLockEntry
 
 
 class LockfileManager:
@@ -64,14 +64,52 @@ class LockfileManager:
                 for skill_name, entry_data in data.get("skills", {}).items():
                     entry_data["installed"] = datetime.fromisoformat(entry_data["installed"])
 
-                return SkillLock(**data)
+                lock = SkillLock(**data)
+                if self._lockfile_needs_rebuild(lock):
+                    print(f"Warning: Lockfile at {self.lockfile_path} is behind installed skills, rebuilding")
+                    return self.rebuild()
+                return lock
             except Exception as e:
                 # If lockfile is corrupted, create a new one
-                print(f"Warning: Corrupted lockfile at {self.lockfile_path}, creating new one: {e}")
-                return SkillLock(updated=datetime.now(), skills={})
+                print(f"Warning: Corrupted lockfile at {self.lockfile_path}, rebuilding: {e}")
+                return self.rebuild()
         else:
             # Create new empty lockfile
-            return SkillLock(updated=datetime.now(), skills={})
+            return self.rebuild()
+
+    def _iter_installed_skill_dirs(self) -> list[Path]:
+        """Return installed skill directories that contain skill metadata."""
+        if not self.agent_dir.exists():
+            return []
+
+        return sorted(
+            path for path in self.agent_dir.iterdir()
+            if path.is_dir() and (path / "skill.json").exists()
+        )
+
+    def _lockfile_needs_rebuild(self, lock: SkillLock) -> bool:
+        """Return True if the lockfile is missing installed skill directories."""
+        installed_skill_names = {
+            skill_dir.name for skill_dir in self._iter_installed_skill_dirs()
+        }
+        locked_skill_names = set(lock.skills.keys())
+        return installed_skill_names != locked_skill_names
+
+    def rebuild(self) -> SkillLock:
+        """Rebuild the lockfile from installed skill directories on disk."""
+        lock = SkillLock(updated=datetime.now(), skills={})
+
+        for skill_dir in self._iter_installed_skill_dirs():
+            skill = Skill(skill_dir)
+            lock.skills[skill.metadata.name] = SkillLockEntry(
+                version=skill.metadata.version,
+                hash=skill.compute_hash(),
+                installed=datetime.now(),
+                source="recovered-from-installed-skill",
+            )
+
+        self.save(lock)
+        return lock
 
     def save(self, lock: SkillLock) -> None:
         """Save lockfile to disk.

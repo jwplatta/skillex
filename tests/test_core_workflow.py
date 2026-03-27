@@ -88,6 +88,46 @@ def test_install_manager_updates_lockfile(tmp_path: Path) -> None:
     assert entry.hash == skill.metadata.hash
 
 
+def test_lockfile_rebuilds_when_corrupted(tmp_path: Path) -> None:
+    agent_dir = tmp_path / "agent"
+    skill = create_skill(agent_dir / "demo-skill")
+    lockfile_path = agent_dir / ".skillex.lock"
+    lockfile_path.write_text("{not valid json")
+
+    manager = LockfileManager(agent_dir)
+    lock = manager.load()
+
+    assert "demo-skill" in lock.skills
+    assert lock.skills["demo-skill"].version == skill.metadata.version
+    assert lock.skills["demo-skill"].source == "recovered-from-installed-skill"
+
+
+def test_lockfile_rebuilds_when_missing_installed_skill_entries(tmp_path: Path) -> None:
+    agent_dir = tmp_path / "agent"
+    create_skill(agent_dir / "demo-skill")
+    create_skill(agent_dir / "second-skill", name="second-skill")
+
+    lockfile_path = agent_dir / ".skillex.lock"
+    lockfile_path.write_text(json.dumps({
+        "version": "1.0",
+        "updated": datetime.now().isoformat(),
+        "skills": {
+            "demo-skill": {
+                "version": "0.1.0",
+                "hash": "sha256:stale",
+                "installed": datetime.now().isoformat(),
+                "source": "/tmp/source",
+            }
+        },
+    }))
+
+    manager = LockfileManager(agent_dir)
+    lock = manager.load()
+
+    assert set(lock.skills.keys()) == {"demo-skill", "second-skill"}
+    assert lock.skills["second-skill"].source == "recovered-from-installed-skill"
+
+
 def test_repository_push_without_remote_returns_explicit_error(tmp_path: Path) -> None:
     repo = create_local_repo_clone(tmp_path / ".skillex")
     create_skill(repo.skills_path / "demo-skill")
