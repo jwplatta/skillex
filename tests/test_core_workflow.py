@@ -88,6 +88,30 @@ def test_install_manager_updates_lockfile(tmp_path: Path) -> None:
     assert entry.hash == skill.metadata.hash
 
 
+def test_fresh_install_copies_skill_and_creates_lock_entry(tmp_path: Path) -> None:
+    repo = create_local_repo_clone(tmp_path / ".skillex")
+    source_skill = create_skill(repo.skills_path / "fresh-install-skill", name="fresh-install-skill")
+    installer = InstallManager(repo)
+    agent_dir = tmp_path / "empty-agent"
+
+    success, error = installer.install_skill("fresh-install-skill", "codex", agent_dir)
+
+    assert success is True
+    assert error is None
+    assert (agent_dir / "fresh-install-skill" / "SKILL.md").exists()
+    assert (agent_dir / "fresh-install-skill" / "skill.json").exists()
+
+    installed_skill = Skill(agent_dir / "fresh-install-skill")
+    lockfile = LockfileManager(agent_dir)
+    entry = lockfile.get_entry("fresh-install-skill")
+
+    assert installed_skill.metadata.version == source_skill.metadata.version
+    assert installed_skill.metadata.hash == source_skill.metadata.hash
+    assert entry is not None
+    assert entry.version == source_skill.metadata.version
+    assert entry.hash == source_skill.metadata.hash
+
+
 def test_lockfile_rebuilds_when_corrupted(tmp_path: Path) -> None:
     agent_dir = tmp_path / "agent"
     skill = create_skill(agent_dir / "demo-skill")
