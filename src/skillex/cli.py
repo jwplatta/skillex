@@ -72,6 +72,36 @@ def bootstrap_local_skill(skill_path: Path, agent: str, author: str = "system") 
     return skill
 
 
+def initialize_missing_skill_metadata(
+    skill_path: Path,
+    skill_name: str,
+    bump: str,
+    author: str = "agent",
+) -> Skill:
+    """Create a minimal skill.json for a brand-new local skill directory."""
+    initial_version = "1.0.0" if bump == "major" else "0.1.0"
+    skill_json_path = skill_path / "skill.json"
+
+    skill_json = {
+        "name": skill_name,
+        "version": initial_version,
+        "hash": "placeholder",
+        "dependencies": [],
+        "created": datetime.now().isoformat(),
+        "updated": datetime.now().isoformat(),
+        "author": author,
+        "description": f"{skill_name} skill",
+    }
+
+    with open(skill_json_path, "w") as f:
+        json.dump(skill_json, f, indent=2)
+
+    skill = Skill(skill_path)
+    skill.metadata.hash = skill.compute_hash()
+    skill.save_metadata()
+    return skill
+
+
 def check_for_updates_quietly() -> None:
     """Check for updates from remote without blocking.
 
@@ -358,12 +388,23 @@ def push(skill_name, commit_type, summary, changes, reason, bump, agent, provide
         return
 
     try:
-        # Load skill from provider directory
-        provider_skill = Skill(skill_path)
-        current_version = provider_skill.metadata.version
-        new_version = VersionManager.bump(current_version, bump)
+        is_new_skill = not (skill_path / "skill.json").exists()
+        if is_new_skill:
+            click.echo("No skill.json found. Creating metadata for new skill...")
+            provider_skill = initialize_missing_skill_metadata(skill_path, skill_name, bump)
+            current_version = provider_skill.metadata.version
+            new_version = current_version
+        else:
+            # Load skill from provider directory
+            provider_skill = Skill(skill_path)
+            current_version = provider_skill.metadata.version
+            new_version = VersionManager.bump(current_version, bump)
 
-        click.echo(f"Version: {current_version} -> {new_version}")
+        # Load skill from provider directory
+        if is_new_skill:
+            click.echo(f"Version: new skill -> {new_version}")
+        else:
+            click.echo(f"Version: {current_version} -> {new_version}")
 
         repo_skill_path = repo.skills_path / skill_name
         had_existing_repo_skill = repo_skill_path.exists()

@@ -137,6 +137,48 @@ def test_cli_push_without_remote_does_not_bump_installed_skill(
     assert not (repo.skills_path / "demo-skill").exists()
 
 
+def test_cli_push_creates_skill_json_for_new_skill_without_metadata(
+    tmp_path: Path, monkeypatch
+) -> None:
+    repo = create_local_repo_clone(tmp_path / ".skillex")
+
+    provider_dir = tmp_path / "provider-skills"
+    skill_dir = provider_dir / "brand-new-skill"
+    skill_dir.mkdir(parents=True)
+    (skill_dir / "SKILL.md").write_text("# Brand New\n")
+
+    class FakeProvider:
+        def get_skills_directory(self) -> Path:
+            return provider_dir
+
+    monkeypatch.setattr(cli_module, "_repo", repo)
+    monkeypatch.setattr(cli_module, "detect_current_provider", lambda: "claude")
+    monkeypatch.setattr(cli_module, "get_provider", lambda name: FakeProvider())
+    monkeypatch.setattr(cli_module, "check_for_updates_quietly", lambda: None)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        [
+            "push",
+            "brand-new-skill",
+            "--type",
+            "docs",
+            "--summary",
+            "seed new skill",
+        ],
+    )
+
+    created_skill = Skill(skill_dir)
+
+    assert result.exit_code == 0
+    assert "Creating metadata for new skill" in result.output
+    assert created_skill.metadata.name == "brand-new-skill"
+    assert created_skill.metadata.version == "0.1.0"
+    assert created_skill.metadata.hash.startswith("sha256:")
+    assert not (repo.skills_path / "brand-new-skill").exists()
+
+
 def test_provider_materializes_bootstrap_skill_from_skill_directory(tmp_path: Path) -> None:
     provider = CodexProvider()
     destination = tmp_path / "skillex"
@@ -147,8 +189,8 @@ def test_provider_materializes_bootstrap_skill_from_skill_directory(tmp_path: Pa
     commands_ref = (destination / "references" / "commands.md").read_text()
 
     assert "provider:" not in "\n".join(skill_md.splitlines()[:6])
-    assert "Codex" in skill_md
-    assert str(provider.get_skills_directory()) in skill_md
+    assert "shared repository" in skill_md
+    assert "--agent codex" in skill_md
     assert "skillex init codex" in commands_ref
 
 

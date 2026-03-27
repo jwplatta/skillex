@@ -3,15 +3,14 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Optional
+import textwrap
 import shutil
 
 
 class BaseProvider(ABC):
     """Base class for AI agent providers.
 
-    Each provider (Claude, Codex, Gemini) has its own:
-    - Skills directory location
-    - Skillex skill content (provider-specific instructions)
+    Each provider (Claude, Codex, Gemini) has its own skills directory location.
 
     Example:
         >>> provider = ClaudeProvider()
@@ -54,63 +53,76 @@ class BaseProvider(ABC):
         """
         pass
 
-    def get_provider_display_name(self) -> str:
-        """Return a human-readable provider name."""
-        return self.name
+    def get_bootstrap_skill_markdown(self) -> str:
+        """Return a minimal neutral bootstrap skillex skill."""
+        return textwrap.dedent(
+            """
+            ---
+            name: skillex
+            description: Manage shared skills with the skillex CLI
+            ---
 
-    def get_skill_template_directory(self) -> Path:
-        """Return the source directory for the bootstrap skillex skill."""
-        repo_root = Path(__file__).resolve().parents[3]
-        repo_skill_dir = repo_root / "skill"
-        if repo_skill_dir.exists():
-            return repo_skill_dir
+            # Skillex
 
-        packaged_skill_dir = Path(__file__).resolve().parents[1] / "templates" / "skillex-skill"
-        if packaged_skill_dir.exists():
-            return packaged_skill_dir
+            Use `skillex` to manage versioned skills from a shared repository.
 
-        raise FileNotFoundError("Could not find skillex bootstrap skill directory")
+            ## First Steps
 
-    def get_skill_template_context(self) -> dict[str, str]:
-        """Return placeholder values used in the skillex bootstrap skill."""
-        return {
-            "provider": self.name,
-            "provider_display": self.get_provider_display_name(),
-            "skills_dir": str(self.get_skills_directory()),
-        }
+            1. Configure the shared skills repo:
 
-    def render_skill_template(self, content: str) -> str:
-        """Render bootstrap skill file content for this provider."""
-        rendered = content
-        for key, value in self.get_skill_template_context().items():
-            rendered = rendered.replace(f"{{{{{key}}}}}", value)
-        return rendered
+            ```bash
+            skillex config set-remote <repo-url>
+            ```
+
+            2. Pull or push skills with an explicit agent:
+
+            ```bash
+            skillex pull <skill-name> --agent claude
+            skillex push <skill-name> --agent codex --type docs --summary "describe the change"
+            ```
+
+            ## Notes
+
+            - The shared source of truth lives in `~/.skillex`.
+            - Installed copies live in agent-specific skills directories.
+            - Use `skillex list` to inspect the shared repository contents.
+            """
+        ).strip() + "\n"
+
+    def get_bootstrap_commands_markdown(self) -> str:
+        """Return a compact bootstrap commands reference."""
+        return textwrap.dedent(
+            """
+            # Skillex Commands
+
+            ```bash
+            skillex list
+            skillex init claude
+            skillex init codex
+            skillex init gemini
+            skillex pull <skill-name> --agent <claude|codex|gemini>
+            skillex update <skill-name> --agent <claude|codex|gemini>
+            skillex push <skill-name> --agent <claude|codex|gemini> --type <type> --summary "summary"
+            skillex config set-remote <repo-url>
+            ```
+            """
+        ).strip() + "\n"
 
     def materialize_skillex_skill(self, destination: Path) -> None:
-        """Copy the bootstrap skillex skill into a destination directory."""
-        template_dir = self.get_skill_template_directory()
+        """Create a minimal bootstrap skillex skill into a destination directory."""
 
         if destination.exists():
             shutil.rmtree(destination)
 
         destination.mkdir(parents=True, exist_ok=True)
-
-        for source_path in template_dir.rglob("*"):
-            relative_path = source_path.relative_to(template_dir)
-            target_path = destination / relative_path
-
-            if source_path.is_dir():
-                target_path.mkdir(parents=True, exist_ok=True)
-                continue
-
-            target_path.parent.mkdir(parents=True, exist_ok=True)
-            rendered = self.render_skill_template(source_path.read_text())
-            target_path.write_text(rendered)
+        references_dir = destination / "references"
+        references_dir.mkdir(parents=True, exist_ok=True)
+        (destination / "SKILL.md").write_text(self.get_bootstrap_skill_markdown())
+        (references_dir / "commands.md").write_text(self.get_bootstrap_commands_markdown())
 
     def get_skillex_skill_content(self) -> str:
-        """Return the rendered SKILL.md content for this provider."""
-        template_path = self.get_skill_template_directory() / "SKILL.md"
-        return self.render_skill_template(template_path.read_text())
+        """Return the bootstrap SKILL.md content."""
+        return self.get_bootstrap_skill_markdown()
 
     def initialize(self) -> Path:
         """Initialize provider skills directory.
