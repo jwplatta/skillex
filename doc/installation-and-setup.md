@@ -117,6 +117,12 @@ Update an installed skill:
 skillex update <skill-name>
 ```
 
+Remove a skill from the shared `~/.skillex` repository while keeping your local copy:
+
+```bash
+skillex remove <skill-name>
+```
+
 Push changes back to the central repository:
 
 ```bash

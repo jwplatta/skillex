@@ -78,6 +78,7 @@ class BaseProvider(ABC):
 
             ```bash
             skillex pull <skill-name> --agent claude
+            skillex remove <skill-name>
             skillex push <skill-name> --agent codex --type docs --summary "describe the change"
             ```
 
@@ -102,6 +103,7 @@ class BaseProvider(ABC):
             skillex init gemini
             skillex pull <skill-name> --agent <claude|codex|gemini>
             skillex update <skill-name> --agent <claude|codex|gemini>
+            skillex remove <skill-name>
             skillex push <skill-name> --agent <claude|codex|gemini> --type <type> --summary "summary"
             skillex config set-remote <repo-url>
             ```

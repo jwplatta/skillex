@@ -112,6 +112,26 @@ def test_fresh_install_copies_skill_and_creates_lock_entry(tmp_path: Path) -> No
     assert entry.hash == source_skill.metadata.hash
 
 
+def test_uninstall_skill_removes_installed_copy_and_lock_entry(tmp_path: Path) -> None:
+    repo = create_local_repo_clone(tmp_path / ".skillex")
+    create_skill(repo.skills_path / "demo-skill")
+    installer = InstallManager(repo)
+    agent_dir = tmp_path / "agent"
+
+    success, error = installer.install_skill("demo-skill", "claude", agent_dir)
+    assert success is True
+    assert error is None
+
+    success, error = installer.uninstall_skill("demo-skill", agent_dir)
+
+    assert success is True
+    assert error is None
+    assert not (agent_dir / "demo-skill").exists()
+
+    lockfile = LockfileManager(agent_dir)
+    assert lockfile.get_entry("demo-skill") is None
+
+
 def test_lockfile_rebuilds_when_corrupted(tmp_path: Path) -> None:
     agent_dir = tmp_path / "agent"
     skill = create_skill(agent_dir / "demo-skill")
@@ -243,6 +263,32 @@ def test_cli_push_creates_skill_json_for_new_skill_without_metadata(
     assert not (repo.skills_path / "brand-new-skill").exists()
 
 
+def test_cli_remove_deletes_repo_copy_but_keeps_provider_copy(
+    tmp_path: Path, monkeypatch
+) -> None:
+    repo = create_local_repo_clone(tmp_path / ".skillex")
+
+    provider_dir = tmp_path / "provider-skills"
+    create_skill(repo.skills_path / "demo-skill")
+    repo.repo.index.add([str(repo.skills_path / "demo-skill")])
+    repo.repo.index.commit("track demo skill")
+    installer = InstallManager(repo)
+    success, error = installer.install_skill("demo-skill", "claude", provider_dir)
+    assert success is True
+    assert error is None
+
+    monkeypatch.setattr(cli_module, "_repo", repo)
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["remove", "demo-skill"], input="y\n")
+
+    assert result.exit_code == 0
+    assert "Successfully removed demo-skill" in result.output
+    assert not (repo.skills_path / "demo-skill").exists()
+    assert (provider_dir / "demo-skill").exists()
+    assert "Local provider copies were not changed." in result.output
+
+
 def test_provider_materializes_bootstrap_skill_from_skill_directory(tmp_path: Path) -> None:
     provider = CodexProvider()
     destination = tmp_path / "skillex"
@@ -255,7 +301,9 @@ def test_provider_materializes_bootstrap_skill_from_skill_directory(tmp_path: Pa
     assert "provider:" not in "\n".join(skill_md.splitlines()[:6])
     assert "shared repository" in skill_md
     assert "--agent codex" in skill_md
+    assert "skillex remove <skill-name>" in skill_md
     assert "skillex init codex" in commands_ref
+    assert "skillex remove <skill-name>" in commands_ref
 
 
 def test_repository_clones_remote_when_url_provided(tmp_path: Path) -> None:

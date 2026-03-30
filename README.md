@@ -12,7 +12,7 @@ Implemented:
 
 - clone-based central repo setup with `skillex config set-remote <url>`
 - agent bootstrap with `skillex init claude|codex|gemini`
-- pull/install/update/push/delete flows
+- pull/install/update/remove-from-repo/push/delete flows
 - structured commit message generation
 - per-agent lockfiles for installed skills
 - support for repo-local test agent dirs like `.claude/skills` and `.codex/skills`
@@ -85,6 +85,7 @@ skillex list
 skillex init <claude|codex|gemini>
 skillex pull <skill-name> --agent <claude|codex|gemini>
 skillex update <skill-name> --agent <claude|codex|gemini>
+skillex remove <skill-name>
 skillex push <skill-name> --agent <claude|codex|gemini> --type <type> --summary "<summary>"
 skillex delete <skill-name>
 skillex config show

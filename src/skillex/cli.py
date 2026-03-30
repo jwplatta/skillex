@@ -508,6 +508,33 @@ def update(skill_name, agent, provider):
 
 @cli.command()
 @click.argument("skill_name")
+@click.confirmation_option(prompt="Are you sure you want to remove this skill from the shared repository?")
+def remove(skill_name):
+    """Remove a skill from the shared repository while keeping local copies.
+
+    This removes the skill from the central repository in `~/.skillex`.
+    Installed copies in provider directories are left in place so you can
+    refactor, replace, or push a fresh version later.
+
+    \b
+    Examples:
+      skillex remove python-testing
+    """
+    repo = get_repo()
+    click.echo(f"Removing {skill_name} from shared repository...")
+
+    success, error = repo.delete_skill(skill_name)
+
+    if success:
+        click.secho(f"✅ Successfully removed {skill_name}", fg="green")
+        click.echo("\nLocal provider copies were not changed.")
+        click.echo("You can keep editing the local skill and push it again later.")
+    else:
+        click.secho(f"❌ Failed: {error}", fg="red")
+
+
+@cli.command()
+@click.argument("skill_name")
 @click.confirmation_option(prompt="Are you sure you want to delete this skill?")
 def delete(skill_name):
     """Delete a skill from the repository.
