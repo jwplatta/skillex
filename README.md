@@ -11,11 +11,11 @@ The project is usable for personal/local workflows now.
 Implemented:
 
 - clone-based central repo setup with `skillex config set-remote <url>`
-- agent bootstrap with `skillex init claude|codex|gemini`
+- agent bootstrap with `skillex init claude|codex|antigravity`
 - pull/install/update/remove-from-repo/push/delete flows
 - structured commit message generation
 - per-agent lockfiles for installed skills
-- support for repo-local test agent dirs like `.claude/skills` and `.codex/skills`
+- support for repo-local test agent dirs like `.claude/skills`, `.codex/skills`, and `.agents/skills`
 
 Still basic:
 
@@ -57,7 +57,7 @@ skillex config set-remote https://github.com/jwplatta/agent-skills
 ```bash
 skillex init claude
 skillex init codex
-skillex init gemini
+skillex init antigravity
 ```
 
 3. Pull a skill for a specific agent:
@@ -65,6 +65,7 @@ skillex init gemini
 ```bash
 skillex pull skillex --agent claude
 skillex pull skillex --agent codex
+skillex pull skillex --agent antigravity
 ```
 
 4. Push a changed skill back to the shared repo:
@@ -82,11 +83,11 @@ skillex push skillex \
 
 ```bash
 skillex list
-skillex init <claude|codex|gemini>
-skillex pull <skill-name> --agent <claude|codex|gemini>
-skillex update <skill-name> --agent <claude|codex|gemini>
+skillex init <claude|codex|antigravity>
+skillex pull <skill-name> --agent <claude|codex|antigravity>
+skillex update <skill-name> --agent <claude|codex|antigravity>
 skillex remove <skill-name>
-skillex push <skill-name> --agent <claude|codex|gemini> --type <type> --summary "<summary>"
+skillex push <skill-name> --agent <claude|codex|antigravity> --type <type> --summary "<summary>"
 skillex delete <skill-name>
 skillex config show
 skillex config get-remote
@@ -117,6 +118,7 @@ Each agent skills directory gets its own `.skillex.lock`, for example:
 
 - `.claude/skills/.skillex.lock`
 - `.codex/skills/.skillex.lock`
+- `.agents/skills/.skillex.lock`
 
 The lockfile records:
 

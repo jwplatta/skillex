@@ -152,7 +152,7 @@ def help():
 @click.option(
     "--provider",
     type=click.Choice(list_providers(), case_sensitive=False),
-    help="Filter by provider (claude, codex, gemini)"
+    help="Filter by provider (claude, codex, antigravity)"
 )
 def list(provider):
     """List all skills in the repository.
@@ -199,7 +199,7 @@ def init(provider):
     Examples:
       skillex init claude
       skillex init codex
-      skillex init gemini
+      skillex init antigravity
     """
     provider = provider.lower()
     provider_obj = get_provider(provider)
@@ -243,7 +243,7 @@ def init(provider):
 @click.option(
     "--agent",
     type=click.Choice(list_providers(), case_sensitive=False),
-    help="Agent to pull for (claude, codex, gemini)"
+    help="Agent to pull for (claude, codex, antigravity)"
 )
 @click.option(
     "--provider",
@@ -336,7 +336,7 @@ def pull(skill_name, agent, provider):
 @click.option(
     "--agent",
     type=click.Choice(list_providers(), case_sensitive=False),
-    help="Agent context (claude, codex, gemini)"
+    help="Agent context (claude, codex, antigravity)"
 )
 @click.option("--provider", hidden=True, help="Deprecated alias for --agent")
 def push(skill_name, commit_type, summary, changes, reason, bump, agent, provider):
@@ -464,7 +464,7 @@ def push(skill_name, commit_type, summary, changes, reason, bump, agent, provide
 @click.option(
     "--agent",
     type=click.Choice(list_providers(), case_sensitive=False),
-    help="Agent context (claude, codex, gemini)"
+    help="Agent context (claude, codex, antigravity)"
 )
 @click.option("--provider", hidden=True, help="Deprecated alias for --agent")
 def update(skill_name, agent, provider):

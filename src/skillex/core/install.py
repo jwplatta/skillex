@@ -45,7 +45,7 @@ class InstallManager:
 
         Args:
             skill_name: Name of skill to install
-            provider: Provider name (claude, codex, gemini)
+            provider: Provider name (claude, codex, antigravity)
             agent_dir: Path to agent's skills directory
 
         Returns:
