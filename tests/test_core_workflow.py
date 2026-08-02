@@ -13,6 +13,8 @@ from skillex.core.install import InstallManager
 from skillex.core.lockfile import LockfileManager
 from skillex.core.repository import SkillexRepository
 from skillex.models import Skill
+from skillex.providers import get_provider, list_providers
+from skillex.providers.antigravity import AntigravityProvider
 from skillex.providers.codex import CodexProvider
 from skillex.utils.commit import generate_commit_message
 
@@ -67,6 +69,41 @@ def test_generate_commit_message_includes_structured_sections() -> None:
     assert "REASON:" in message
     assert "author=tester" in message
     assert "timestamp=2026-03-27T18:21:00Z" in message
+
+
+def test_provider_registry_exposes_supported_agents_only() -> None:
+    assert list_providers() == ["claude", "codex", "antigravity"]
+    assert isinstance(get_provider("antigravity"), AntigravityProvider)
+    assert get_provider("gemini") is None
+
+
+def test_antigravity_provider_prefers_workspace_local_agents_skills(
+    tmp_path: Path, monkeypatch
+) -> None:
+    workspace = tmp_path / "workspace"
+    nested = workspace / "project" / "subdir"
+    agents_dir = workspace / ".agents"
+    agents_dir.mkdir(parents=True)
+    nested.mkdir(parents=True)
+
+    monkeypatch.chdir(nested)
+
+    assert AntigravityProvider().get_skills_directory() == agents_dir / "skills"
+
+
+def test_antigravity_provider_global_fallback(tmp_path: Path, monkeypatch) -> None:
+    workspace = tmp_path / "workspace"
+    home = tmp_path / "home"
+    workspace.mkdir()
+    home.mkdir()
+
+    monkeypatch.chdir(workspace)
+    monkeypatch.setenv("HOME", str(home))
+
+    assert (
+        AntigravityProvider().get_skills_directory()
+        == home / ".gemini" / "antigravity-cli" / "skills"
+    )
 
 
 def test_install_manager_updates_lockfile(tmp_path: Path) -> None:
@@ -303,6 +340,8 @@ def test_provider_materializes_bootstrap_skill_from_skill_directory(tmp_path: Pa
     assert "--agent codex" in skill_md
     assert "skillex remove <skill-name>" in skill_md
     assert "skillex init codex" in commands_ref
+    assert "skillex init antigravity" in commands_ref
+    assert "gemini" not in commands_ref
     assert "skillex remove <skill-name>" in commands_ref
 
 

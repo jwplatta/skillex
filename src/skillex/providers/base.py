@@ -10,7 +10,7 @@ import shutil
 class BaseProvider(ABC):
     """Base class for AI agent providers.
 
-    Each provider (Claude, Codex, Gemini) has its own skills directory location.
+    Each provider (Claude, Codex, Antigravity) has its own skills directory location.
 
     Example:
         >>> provider = ClaudeProvider()
@@ -22,7 +22,7 @@ class BaseProvider(ABC):
         """Initialize base provider.
 
         Args:
-            name: Provider name (e.g., "claude", "codex", "gemini")
+            name: Provider name (e.g., "claude", "codex", "antigravity")
         """
         self.name = name
         self.skills_dir: Optional[Path] = None
@@ -100,11 +100,11 @@ class BaseProvider(ABC):
             skillex list
             skillex init claude
             skillex init codex
-            skillex init gemini
-            skillex pull <skill-name> --agent <claude|codex|gemini>
-            skillex update <skill-name> --agent <claude|codex|gemini>
+            skillex init antigravity
+            skillex pull <skill-name> --agent <claude|codex|antigravity>
+            skillex update <skill-name> --agent <claude|codex|antigravity>
             skillex remove <skill-name>
-            skillex push <skill-name> --agent <claude|codex|gemini> --type <type> --summary "summary"
+            skillex push <skill-name> --agent <claude|codex|antigravity> --type <type> --summary "summary"
             skillex config set-remote <repo-url>
             ```
             """

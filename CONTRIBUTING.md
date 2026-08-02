@@ -20,7 +20,7 @@ skillex config set-remote <repo-url>
 ```bash
 skillex init claude
 skillex init codex
-skillex init gemini
+skillex init antigravity
 ```
 
 3. Run tests before committing:
@@ -33,7 +33,7 @@ uv run python -m pytest
 
 - Use `--agent` explicitly in examples and tests.
 - Treat the remote skills repo as the source of truth for shared skills.
-- Do not commit repo-local test installs like `.claude/`, `.codex/`, or `.gemini/`.
+- Do not commit repo-local test installs like `.claude/`, `.codex/`, or `.agents/`.
 - Keep commit messages focused and descriptive.
 
 ## Pull Requests

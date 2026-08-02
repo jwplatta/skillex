@@ -82,14 +82,15 @@ Set up one of the supported provider directories:
 ```bash
 skillex init claude
 skillex init codex
-skillex init gemini
+skillex init antigravity
 ```
 
 Provider skill locations:
 
 - Claude: `~/.claude/skills`
 - Codex: `~/.codex/skills`
-- Gemini: `~/.gemini/skills`
+- Antigravity workspace-local: `.agents/skills`
+- Antigravity global fallback: `~/.gemini/antigravity-cli/skills`
 
 `skillex init <provider>` will:
 
@@ -136,7 +137,7 @@ Useful push options:
 - `--changes "specific change"`
 - `--reason "why the change was needed"`
 - `--bump patch|minor|major`
-- `--provider claude|codex|gemini`
+- `--provider claude|codex|antigravity`
 
 ## Migration
 

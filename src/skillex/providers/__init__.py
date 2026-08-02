@@ -8,16 +8,16 @@ from pathlib import Path
 from typing import Optional
 
 from .base import BaseProvider
+from .antigravity import AntigravityProvider
 from .claude import ClaudeProvider
 from .codex import CodexProvider
-from .gemini import GeminiProvider
 
 
 # Registry of available providers
 PROVIDERS = {
     "claude": ClaudeProvider,
     "codex": CodexProvider,
-    "gemini": GeminiProvider,
+    "antigravity": AntigravityProvider,
 }
 
 
@@ -25,7 +25,7 @@ def get_provider(name: str) -> Optional[BaseProvider]:
     """Get provider instance by name.
 
     Args:
-        name: Provider name (claude, codex, gemini)
+        name: Provider name (claude, codex, antigravity)
 
     Returns:
         Provider instance if found, None otherwise
@@ -88,16 +88,16 @@ def list_providers() -> list[str]:
 
     Example:
         >>> list_providers()
-        ['claude', 'codex', 'gemini']
+        ['claude', 'codex', 'antigravity']
     """
     return list(PROVIDERS.keys())
 
 
 __all__ = [
     "BaseProvider",
+    "AntigravityProvider",
     "ClaudeProvider",
     "CodexProvider",
-    "GeminiProvider",
     "get_provider",
     "detect_current_provider",
     "list_providers",
