@@ -90,7 +90,7 @@ Provider skill locations:
 - Claude: `~/.claude/skills`
 - Codex: `~/.codex/skills`
 - Antigravity workspace-local: `.agents/skills`
-- Antigravity global fallback: `~/.gemini/antigravity-cli/skills`
+- Antigravity global fallback: `~/.gemini/skills`
 
 `skillex init <provider>` will:
 

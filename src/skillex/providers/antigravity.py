@@ -9,7 +9,7 @@ class AntigravityProvider(BaseProvider):
     """Provider for Antigravity agent.
 
     Local skills directory: .agents/skills
-    Global skills directory: ~/.gemini/antigravity-cli/skills
+    Global skills directory: ~/.gemini/skills
     """
 
     def __init__(self):
