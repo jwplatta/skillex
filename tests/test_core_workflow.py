@@ -102,7 +102,7 @@ def test_antigravity_provider_global_fallback(tmp_path: Path, monkeypatch) -> No
 
     assert (
         AntigravityProvider().get_skills_directory()
-        == home / ".gemini" / "antigravity-cli" / "skills"
+        == home / ".gemini" / "skills"
     )
 
 

@@ -21,7 +21,7 @@ class AntigravityProvider(BaseProvider):
 
         Returns:
             Path to .agents/skills when a workspace .agents directory exists,
-            otherwise ~/.gemini/antigravity-cli/skills.
+            otherwise ~/.gemini/skills.
         """
         cwd = Path.cwd().resolve()
 
@@ -30,7 +30,7 @@ class AntigravityProvider(BaseProvider):
             if agents_dir.exists():
                 return agents_dir / "skills"
 
-        return Path.home() / ".gemini" / "antigravity-cli" / "skills"
+        return Path.home() / ".gemini" / "skills"
 
     def get_provider_display_name(self) -> str:
         """Return the provider name used inside the bootstrap skill."""
