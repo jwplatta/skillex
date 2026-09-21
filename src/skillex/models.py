@@ -155,7 +155,10 @@ class Skill:
 
             return SkillMetadata(**data)
         except Exception as e:
-            raise ValueError(f"Invalid skill.json in {self.path}: {e}")
+            raise ValueError(
+                f"Invalid skill.json in {self.path}: {e}\n"
+                "Tip: delete skill.json and retry — skillex will regenerate it automatically."
+            )
 
     def save_metadata(self) -> None:
         """Write current metadata to skill.json.

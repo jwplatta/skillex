@@ -325,10 +325,79 @@ def pull(skill_name, agent, provider):
 
 @cli.command()
 @click.argument("skill_name")
+@click.option(
+    "--agent",
+    type=click.Choice(list_providers(), case_sensitive=False),
+    required=True,
+    help="Agent to scaffold the skill for (claude, codex, antigravity)"
+)
+@click.option("--provider", hidden=True, help="Deprecated alias for --agent")
+def new(skill_name, agent, provider):
+    """Scaffold a new skill directory with a stub SKILL.md.
+
+    Creates <provider-skills-dir>/<skill-name>/SKILL.md ready for editing.
+    Does not create skill.json — push handles that.
+
+    \b
+    Examples:
+      skillex new my-skill --agent claude
+      skillex new quant-helper --agent codex
+    """
+    # Validate skill name
+    if not validate_skill_name(skill_name):
+        click.secho(f"❌ Invalid skill name: {skill_name}", fg="red")
+        click.echo("Skill names must be lowercase, alphanumeric, and may contain hyphens")
+        return
+
+    resolved_agent = resolve_agent(agent, provider)
+    if not resolved_agent:
+        click.secho("❌ Could not resolve agent. Use --agent flag", fg="red")
+        return
+
+    provider_obj = get_provider(resolved_agent)
+    if not provider_obj:
+        click.secho(f"❌ Unknown agent: {resolved_agent}", fg="red")
+        return
+
+    skills_dir = provider_obj.get_skills_directory()
+    skill_path = skills_dir / skill_name
+
+    if skill_path.exists():
+        click.secho(f"❌ Skill directory already exists: {skill_path}", fg="red")
+        return
+
+    skill_path.mkdir(parents=True)
+
+    # Derive a display name: title-case the hyphen-separated words
+    display_name = " ".join(word.capitalize() for word in skill_name.split("-"))
+
+    stub = (
+        f"---\n"
+        f"name: {skill_name}\n"
+        f"description:\n"
+        f"---\n"
+        f"\n"
+        f"# {display_name}\n"
+        f"\n"
+        f"<!-- Describe what this skill does and when to activate it. -->\n"
+    )
+
+    (skill_path / "SKILL.md").write_text(stub)
+
+    click.secho(f"✅ Created: {skill_path}", fg="green")
+    click.echo(
+        f"\nEdit SKILL.md, add any scripts, then run:\n"
+        f"  skillex push {skill_name} --agent {resolved_agent} --type feat --summary '...'"
+    )
+
+
+@cli.command()
+@click.argument("skill_name")
 @click.option("--type", "commit_type", required=True,
               type=click.Choice(["feat", "fix", "refactor", "docs", "test", "chore"]),
               help="Type of change")
-@click.option("--summary", required=True, help="Brief summary of changes (max 80 chars)")
+@click.option("--summary", default="update", show_default=True,
+              help="Brief summary of changes (max 80 chars)")
 @click.option("--changes", help="Optional change details to include in the commit message")
 @click.option("--reason", help="Reason for the changes")
 @click.option("--bump", type=click.Choice(["major", "minor", "patch"]),
@@ -395,10 +464,34 @@ def push(skill_name, commit_type, summary, changes, reason, bump, agent, provide
             current_version = provider_skill.metadata.version
             new_version = current_version
         else:
-            # Load skill from provider directory
-            provider_skill = Skill(skill_path)
+            # Try to load skill from provider directory; auto-heal if skill.json is partial
+            try:
+                provider_skill = Skill(skill_path)
+            except ValueError as load_err:
+                click.echo(
+                    f"skill.json exists but failed validation ({load_err}). "
+                    "Auto-healing — regenerating metadata..."
+                )
+                # Preserve any valid fields already present
+                existing: dict = {}
+                try:
+                    import json as _json
+                    with open(skill_path / "skill.json") as _f:
+                        existing = _json.load(_f)
+                except Exception:
+                    pass
+                provider_skill = initialize_missing_skill_metadata(skill_path, skill_name, bump)
+                # Restore preserved fields
+                changed = False
+                for field in ("name", "version", "description", "author", "dependencies"):
+                    if field in existing and existing[field]:
+                        setattr(provider_skill.metadata, field, existing[field])
+                        changed = True
+                if changed:
+                    provider_skill.save_metadata()
+                is_new_skill = True
             current_version = provider_skill.metadata.version
-            new_version = VersionManager.bump(current_version, bump)
+            new_version = VersionManager.bump(current_version, bump) if not is_new_skill else current_version
 
         # Load skill from provider directory
         if is_new_skill:
