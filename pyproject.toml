@@ -1,6 +1,6 @@
 [project]
 name = "skillex"
-version = "0.1.0"
+version = "0.2.0"
 description = "Manage AI agent skills across multiple providers"
 authors = [{name = "User", email = "user@example.com"}]
 readme = "README.md"
