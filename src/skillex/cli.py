@@ -113,7 +113,7 @@ def check_for_updates_quietly() -> None:
 
         if has_updates:
             click.secho(
-                "💡 Tip: Updates available. Run 'skillex pull' to sync.",
+                "Tip: Updates available. Run 'skillex pull' to sync.",
                 fg="yellow",
                 dim=True
             )
@@ -205,17 +205,17 @@ def init(provider):
     provider_obj = get_provider(provider)
 
     if not provider_obj:
-        click.secho(f"❌ Unknown provider: {provider}", fg="red")
+        click.secho(f"Error: Unknown provider: {provider}", fg="red")
         return
 
     click.echo(f"Initializing {provider}...")
 
     # Initialize provider directory
     skills_dir = provider_obj.initialize()
-    click.echo(f"✓ Created skills directory: {skills_dir}")
+    click.echo(f"Created skills directory: {skills_dir}")
 
     repo = get_repo()
-    click.echo(f"✓ Using repository: {repo.repo_path}")
+    click.echo(f"Using repository: {repo.repo_path}")
 
     repo_skill = repo.get_skill("skillex")
     if repo_skill:
@@ -228,14 +228,14 @@ def init(provider):
         success, error = True, None
 
     if success:
-        click.secho(f"\n✅ Successfully initialized {provider}!", fg="green", bold=True)
+        click.secho(f"\nSuccessfully initialized {provider}!", fg="green", bold=True)
         click.echo(f"\nSkillex skill installed at: {skills_dir / 'skillex'}")
         click.echo("\nNext steps:")
         click.echo("  1. Check available skills: skillex list")
         click.echo("  2. Push the bootstrap skill: skillex push skillex --agent " + provider)
         click.echo("  3. Install another skill: skillex pull <skill-name> --agent " + provider)
     else:
-        click.secho(f"❌ Failed to install skillex skill: {error}", fg="red")
+        click.secho(f"Error: Failed to install skillex skill: {error}", fg="red")
 
 
 @cli.command()
@@ -268,7 +268,7 @@ def pull(skill_name, agent, provider):
     success, error = repo.pull()
 
     if not success:
-        click.secho(f"⚠️  Pull from remote failed: {error}", fg="yellow")
+        click.secho(f"Warning: Pull from remote failed: {error}", fg="yellow")
         click.echo("Continuing with local repository...")
 
     # Detect or use specified provider
@@ -276,14 +276,14 @@ def pull(skill_name, agent, provider):
 
     if not agent:
         click.secho(
-            "❌ Could not detect agent. Use --agent flag or set SKILLEX_PROVIDER env var",
+            "Error: Could not detect agent. Use --agent flag or set SKILLEX_PROVIDER env var",
             fg="red"
         )
         return
 
     provider_obj = get_provider(agent)
     if not provider_obj:
-        click.secho(f"❌ Unknown agent: {agent}", fg="red")
+        click.secho(f"Error: Unknown agent: {agent}", fg="red")
         return
 
     skills_dir = provider_obj.get_skills_directory()
@@ -296,9 +296,9 @@ def pull(skill_name, agent, provider):
         success, error = installer.install_skill(skill_name, agent, skills_dir)
 
         if success:
-            click.secho(f"✅ Successfully installed {skill_name}", fg="green")
+            click.secho(f"Successfully installed {skill_name}", fg="green")
         else:
-            click.secho(f"❌ Failed: {error}", fg="red")
+            click.secho(f"Error: {error}", fg="red")
     else:
         # Pull updates for all installed skills
         click.echo(f"Checking for updates in {agent}...")
@@ -318,9 +318,77 @@ def pull(skill_name, agent, provider):
             for name, _, _ in updates:
                 success, error = installer.update_skill(name, skills_dir)
                 if success:
-                    click.secho(f"✓ Updated {name}", fg="green")
+                    click.secho(f"Updated {name}", fg="green")
                 else:
-                    click.secho(f"✗ Failed to update {name}: {error}", fg="red")
+                    click.secho(f"Failed to update {name}: {error}", fg="red")
+
+
+@cli.command()
+@click.argument("skill_name")
+@click.option(
+    "--agent",
+    type=click.Choice(list_providers(), case_sensitive=False),
+    required=True,
+    help="Agent to scaffold the skill for (claude, codex, antigravity)"
+)
+@click.option("--provider", hidden=True, help="Deprecated alias for --agent")
+def new(skill_name, agent, provider):
+    """Scaffold a new skill directory with a stub SKILL.md.
+
+    Creates <provider-skills-dir>/<skill-name>/SKILL.md ready for editing.
+    Does not create skill.json — push handles that.
+
+    \b
+    Examples:
+      skillex new my-skill --agent claude
+      skillex new quant-helper --agent codex
+    """
+    # Validate skill name
+    if not validate_skill_name(skill_name):
+        click.secho(f"Error: Invalid skill name: {skill_name}", fg="red")
+        click.echo("Skill names must be lowercase, alphanumeric, and may contain hyphens")
+        return
+
+    resolved_agent = resolve_agent(agent, provider)
+    if not resolved_agent:
+        click.secho("Error: Could not resolve agent. Use --agent flag", fg="red")
+        return
+
+    provider_obj = get_provider(resolved_agent)
+    if not provider_obj:
+        click.secho(f"Error: Unknown agent: {resolved_agent}", fg="red")
+        return
+
+    skills_dir = provider_obj.get_skills_directory()
+    skill_path = skills_dir / skill_name
+
+    if skill_path.exists():
+        click.secho(f"Error: Skill directory already exists: {skill_path}", fg="red")
+        return
+
+    skill_path.mkdir(parents=True)
+
+    # Derive a display name: title-case the hyphen-separated words
+    display_name = " ".join(word.capitalize() for word in skill_name.split("-"))
+
+    stub = (
+        f"---\n"
+        f"name: {skill_name}\n"
+        f"description:\n"
+        f"---\n"
+        f"\n"
+        f"# {display_name}\n"
+        f"\n"
+        f"<!-- Describe what this skill does and when to activate it. -->\n"
+    )
+
+    (skill_path / "SKILL.md").write_text(stub)
+
+    click.secho(f"Created: {skill_path}", fg="green")
+    click.echo(
+        f"\nEdit SKILL.md, add any scripts, then run:\n"
+        f"  skillex push {skill_name} --agent {resolved_agent} --type feat --summary '...'"
+    )
 
 
 @cli.command()
@@ -328,7 +396,8 @@ def pull(skill_name, agent, provider):
 @click.option("--type", "commit_type", required=True,
               type=click.Choice(["feat", "fix", "refactor", "docs", "test", "chore"]),
               help="Type of change")
-@click.option("--summary", required=True, help="Brief summary of changes (max 80 chars)")
+@click.option("--summary", default="update", show_default=True,
+              help="Brief summary of changes (max 80 chars)")
 @click.option("--changes", help="Optional change details to include in the commit message")
 @click.option("--reason", help="Reason for the changes")
 @click.option("--bump", type=click.Choice(["major", "minor", "patch"]),
@@ -356,7 +425,7 @@ def push(skill_name, commit_type, summary, changes, reason, bump, agent, provide
 
     # Validate skill name
     if not validate_skill_name(skill_name):
-        click.secho(f"❌ Invalid skill name: {skill_name}", fg="red")
+        click.secho(f"Error: Invalid skill name: {skill_name}", fg="red")
         click.echo("Skill names must be lowercase, alphanumeric, and may contain hyphens")
         return
 
@@ -364,26 +433,26 @@ def push(skill_name, commit_type, summary, changes, reason, bump, agent, provide
     agent = resolve_agent(agent, provider)
 
     if not agent:
-        click.secho("❌ Could not detect agent. Use --agent flag", fg="red")
+        click.secho("Error: Could not detect agent. Use --agent flag", fg="red")
         return
 
     provider_obj = get_provider(agent)
     if not provider_obj:
-        click.secho(f"❌ Unknown agent: {agent}", fg="red")
+        click.secho(f"Error: Unknown agent: {agent}", fg="red")
         return
 
     skills_dir = provider_obj.get_skills_directory()
     skill_path = skills_dir / skill_name
 
     if not skill_path.exists():
-        click.secho(f"❌ Skill not found in {agent} directory: {skill_path}", fg="red")
+        click.secho(f"Error: Skill not found in {agent} directory: {skill_path}", fg="red")
         return
 
     repo = get_repo()
 
     # Check if behind remote
     if repo.is_behind_remote():
-        click.secho("❌ Local repository is behind remote. Pull first:", fg="red")
+        click.secho("Error: Local repository is behind remote. Pull first:", fg="red")
         click.echo("  skillex pull")
         return
 
@@ -395,10 +464,34 @@ def push(skill_name, commit_type, summary, changes, reason, bump, agent, provide
             current_version = provider_skill.metadata.version
             new_version = current_version
         else:
-            # Load skill from provider directory
-            provider_skill = Skill(skill_path)
+            # Try to load skill from provider directory; auto-heal if skill.json is partial
+            try:
+                provider_skill = Skill(skill_path)
+            except ValueError as load_err:
+                click.echo(
+                    f"skill.json exists but failed validation ({load_err}). "
+                    "Auto-healing — regenerating metadata..."
+                )
+                # Preserve any valid fields already present
+                existing: dict = {}
+                try:
+                    import json as _json
+                    with open(skill_path / "skill.json") as _f:
+                        existing = _json.load(_f)
+                except Exception:
+                    pass
+                provider_skill = initialize_missing_skill_metadata(skill_path, skill_name, bump)
+                # Restore preserved fields
+                changed = False
+                for field in ("name", "version", "description", "author", "dependencies"):
+                    if field in existing and existing[field]:
+                        setattr(provider_skill.metadata, field, existing[field])
+                        changed = True
+                if changed:
+                    provider_skill.save_metadata()
+                is_new_skill = True
             current_version = provider_skill.metadata.version
-            new_version = VersionManager.bump(current_version, bump)
+            new_version = VersionManager.bump(current_version, bump) if not is_new_skill else current_version
 
         # Load skill from provider directory
         if is_new_skill:
@@ -448,15 +541,15 @@ def push(skill_name, commit_type, summary, changes, reason, bump, agent, provide
                 elif repo_skill_path.exists():
                     shutil.rmtree(repo_skill_path)
 
-                click.secho(f"❌ Push failed: {error}", fg="red")
+                click.secho(f"Error: Push failed: {error}", fg="red")
                 return
 
             staged_skill.copy_to(skill_path)
 
-        click.secho(f"✅ Successfully pushed {skill_name} v{new_version}", fg="green", bold=True)
+        click.secho(f"Successfully pushed {skill_name} v{new_version}", fg="green", bold=True)
 
     except Exception as e:
-        click.secho(f"❌ Error: {e}", fg="red")
+        click.secho(f"Error: {e}", fg="red")
 
 
 @cli.command()
@@ -481,12 +574,12 @@ def update(skill_name, agent, provider):
     agent = resolve_agent(agent, provider)
 
     if not agent:
-        click.secho("❌ Could not detect agent. Use --agent flag", fg="red")
+        click.secho("Error: Could not detect agent. Use --agent flag", fg="red")
         return
 
     provider_obj = get_provider(agent)
     if not provider_obj:
-        click.secho(f"❌ Unknown agent: {agent}", fg="red")
+        click.secho(f"Error: Unknown agent: {agent}", fg="red")
         return
 
     repo = get_repo()
@@ -501,9 +594,9 @@ def update(skill_name, agent, provider):
         if "already at latest" in (error or ""):
             click.echo(error)
         else:
-            click.secho(f"✅ Successfully updated {skill_name}", fg="green")
+            click.secho(f"Successfully updated {skill_name}", fg="green")
     else:
-        click.secho(f"❌ Failed: {error}", fg="red")
+        click.secho(f"Error: {error}", fg="red")
 
 
 @cli.command()
@@ -526,11 +619,11 @@ def remove(skill_name):
     success, error = repo.delete_skill(skill_name)
 
     if success:
-        click.secho(f"✅ Successfully removed {skill_name}", fg="green")
+        click.secho(f"Successfully removed {skill_name}", fg="green")
         click.echo("\nLocal provider copies were not changed.")
         click.echo("You can keep editing the local skill and push it again later.")
     else:
-        click.secho(f"❌ Failed: {error}", fg="red")
+        click.secho(f"Error: {error}", fg="red")
 
 
 @cli.command()
@@ -553,11 +646,11 @@ def delete(skill_name):
     success, error = repo.delete_skill(skill_name)
 
     if success:
-        click.secho(f"✅ Successfully deleted {skill_name}", fg="green")
+        click.secho(f"Successfully deleted {skill_name}", fg="green")
         click.echo("\nNote: Skill still exists in provider directories.")
         click.echo("Remove manually if needed.")
     else:
-        click.secho(f"❌ Failed: {error}", fg="red")
+        click.secho(f"Error: {error}", fg="red")
 
 
 @cli.command()
@@ -600,7 +693,7 @@ def migrate(source_dir, default_version, provider):
                   if d.is_dir() and (d / "SKILL.md").exists()]
 
     if not skill_dirs:
-        click.secho("❌ No skills found (looking for directories with SKILL.md)", fg="red")
+        click.secho("Error: No skills found (looking for directories with SKILL.md)", fg="red")
         return
 
     click.echo(f"Found {len(skill_dirs)} skill(s):\n")
@@ -657,13 +750,13 @@ def migrate(source_dir, default_version, provider):
                 with open(skill_json_path, "w") as f:
                     json.dump(skill_json, f, indent=2)
 
-                click.echo(f"  ✓ Created skill.json")
+                click.echo(f"  Created skill.json")
 
             migrated.append(skill_name)
-            click.secho(f"  ✓ Migrated successfully", fg="green")
+            click.secho(f"  Migrated successfully", fg="green")
 
         except Exception as e:
-            click.secho(f"  ✗ Failed: {e}", fg="red")
+            click.secho(f"  Failed: {e}", fg="red")
 
     # Commit to repository
     if migrated:
@@ -676,7 +769,7 @@ def migrate(source_dir, default_version, provider):
                 f"Migrated skills:\n" + "\n".join(f"- {s}" for s in migrated)
             )
 
-            click.secho(f"\n✅ Successfully migrated {len(migrated)} skill(s)!", fg="green", bold=True)
+            click.secho(f"\nSuccessfully migrated {len(migrated)} skill(s)!", fg="green", bold=True)
             click.echo(f"\nMigrated skills: {', '.join(migrated)}")
             click.echo(f"\nNext steps:")
             click.echo(f"  1. Review skills in: {repo.skills_path}")
@@ -684,7 +777,7 @@ def migrate(source_dir, default_version, provider):
             click.echo(f"  3. Install to provider: skillex pull <skill-name>")
 
         except Exception as e:
-            click.secho(f"❌ Failed to commit: {e}", fg="red")
+            click.secho(f"Error: Failed to commit: {e}", fg="red")
     else:
         click.echo("\nNo skills were migrated")
 
@@ -740,7 +833,7 @@ def show():
     for provider_name in list_providers():
         provider = get_provider(provider_name)
         skills_dir = provider.get_skills_directory()
-        exists = "✓" if skills_dir.exists() else "✗"
+        exists = "installed" if skills_dir.exists() else "not installed"
         click.echo(f"  {exists} {provider_name}: {skills_dir}")
 
 
@@ -763,21 +856,21 @@ def set_remote(url):
             try:
                 origin = repo.repo.remote("origin")
                 origin.set_url(url)
-                click.secho("✓ Updated remote URL", fg="green")
+                click.secho("Updated remote URL", fg="green")
             except ValueError:
                 repo.repo.create_remote("origin", url)
-                click.secho("✓ Created remote 'origin'", fg="green")
+                click.secho("Created remote 'origin'", fg="green")
         else:
             click.echo(f"Cloning {url} into {repo.repo_path}...")
             repo.initialize(remote_url=url)
-            click.secho("✓ Cloned remote repository", fg="green")
+            click.secho("Cloned remote repository", fg="green")
 
         _repo = repo
         click.echo(f"Remote URL: {url}")
         click.echo(f"Repository path: {repo.repo_path}")
 
     except Exception as e:
-        click.secho(f"❌ Failed to set remote: {e}", fg="red")
+        click.secho(f"Error: Failed to set remote: {e}", fg="red")
 
 
 @config.command()
